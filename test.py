@@ -3,11 +3,12 @@ import queue
 import threading
 import binascii
 
+
 with open('config.txt') as f:
     lines = f.readlines()
 
-userIP = lines[0].strip().split(':')[0] 
-userPort = int(lines[0].strip().split(':')[1])  
+userIP = lines[0].strip().split(':')[0]
+userPort = int(lines[0].strip().split(':')[1])
 userName = lines[1].strip()
 tokenExpirationTime = int(lines[2].strip())
 userHasToken = lines[3].strip() == "true"
@@ -23,28 +24,38 @@ s.bind((userIP, userPort))
 
 
 def receive():
-  while True:
-    message, _ = s.recvfrom(1024)
-    messageDecoded = message.decode()
+    while True:
+        message, _ = s.recvfrom(1024)
+        messageDecoded = message.decode()
 
-    if messageDecoded.startswith("9000"): # token
-      # userHasToken = True
-      pass
-    
-    if messageDecoded.startswith("7777"):
-      message = unpackPackage(messageDecoded)
+        if messageDecoded.startswith("9000"):  # token
+            # userHasToken = True
+            pass
+
+        if messageDecoded.startswith("7777"):
+            errorControl, source, destination, crc, messageContent = unpackPackage(
+                messageDecoded)
+        if source == userName:
+            passAlongToken()
+            # passa o token, pois a mensgem enviada já deu a volta
 
 
 def passAlongMessages():
-    isMessageForMe = True # variavel mocada
+    isMessageForMe = True  # variavel mocada
 
     while True:
-      message, _ = s.recvfrom(1024)      
-      messageDecoded = message.decode()
-      if isMessageForMe:
-        print(message.decode())
-      
-      s.sendto(message, (neighborIP, neighborPort))
+        message, _ = s.recvfrom(1024)
+        messageDecoded = message.decode()
+        if isMessageForMe:
+            print(message.decode())
+
+        s.sendto(message, (neighborIP, neighborPort))
+
+
+def passAlongToken():
+    global userHasToken
+    s.sendto('9000'.encode(), (neighborIP, neighborPort))
+    userHasToken = False
 
 
 def sendMessages():
@@ -52,6 +63,7 @@ def sendMessages():
         message = dataMessages.get()
         package = packPackage("naoexiste", userName, neighborName, message)
         s.sendto(package.encode(), (neighborIP, neighborPort))
+
 
 def packPackage(errorControl, source, destination, message):
     crc = str(binascii.crc32(message.encode()))
@@ -67,11 +79,12 @@ def unpackPackage(package):
             return controle_erro, origem, destino, crc, mensagem
     return None
 
+
 def writeMessages():
     while True:
-      message = input("")
-      dataMessages.put(message)
-      print(dataMessages.queue)
+        message = input("")
+        dataMessages.put(message)
+        print(dataMessages.queue)
 
 
 t1 = threading.Thread(target=receive)
