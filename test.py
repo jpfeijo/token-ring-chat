@@ -3,7 +3,6 @@ import queue
 import threading
 import binascii
 
-
 with open('config.txt') as f:
     lines = f.readlines()
 
@@ -11,7 +10,9 @@ userIP = lines[0].strip().split(':')[0]
 userPort = int(lines[0].strip().split(':')[1])
 userName = lines[1].strip()
 tokenExpirationTime = int(lines[2].strip())
-userHasToken = lines[3].strip() == "true"
+userHasToken = lines[3].strip().lower() == "true"
+
+messageSent = False
 
 neighborIP = input("Enter neighbor IP: ")
 neighborPort = int(input("Enter neighbor port: "))
@@ -35,9 +36,36 @@ def receive():
         if messageDecoded.startswith("7777"):
             errorControl, source, destination, crc, messageContent = unpackPackage(
                 messageDecoded)
+
         if source == userName:
             passAlongToken()
             # passa o token, pois a mensgem enviada já deu a volta
+
+
+def handleMessage(message, address):
+    global messageSent, userHasToken, dataMessages
+
+    if message.startswith("9000"):
+        if messageSent:
+            print('Token recebido mas esperando por ACK')
+            return
+
+        userHasToken = True
+        if dataMessages.empty():
+            print('Token recebidom mas nenhuma mensagem para ser enviada')
+            passAlongToken()
+            return
+
+        messageSent = True
+        sendMessages()
+        print('Token recebido e mensagem enviada -- Esperando por ACK')
+        return
+
+    if message.startswith("7777"):
+        errorControl, source, destination, crc, messageContent = unpackPackage(
+            messageDecoded)
+
+        pass
 
 
 def passAlongMessages():
@@ -59,14 +87,13 @@ def passAlongToken():
 
 
 def sendMessages():
-    if userHasToken:
-        message = dataMessages.get()
-        package = packPackage("naoexiste", userName, neighborName, message)
-        s.sendto(package.encode(), (neighborIP, neighborPort))
+    message = dataMessages[0]
+    package = packPackage("naoexiste", userName, neighborName, message)
+    s.sendto(package.encode(), (neighborIP, neighborPort))
 
 
 def packPackage(errorControl, source, destination, message):
-    crc = str(binascii.crc32(message.encode()))
+    crc = str(binascii.crc32(message.encode()) & 0xFFFFFFFF)
     package = f"7777:{errorControl};{source};{destination};{crc};{message}"
     return package
 
