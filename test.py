@@ -3,6 +3,7 @@ import queue
 import threading
 import binascii
 import random
+from time import sleep
 
 with open('config.txt') as f:
     lines = f.readlines()
@@ -45,6 +46,7 @@ def handleMessage(message):
 
         if dataMessages.empty():
             print('Token recebido mas nenhuma mensagem para ser enviada')
+            sleep(tokenExpirationTime)
             passAlongToken()
             return
 
@@ -54,41 +56,45 @@ def handleMessage(message):
         return
 
     if message.startswith("7777"):
-        messageData = message.split(':')[1]
         errorControl, source, destination, crc, messageContent = unpackPackage(
-            messageData)
+            message)
 
         if destination == userName:
-            calculatedCrc = str(binascii.crc32(messageContent.encode()) & 0xFFFFFFFF)
+            calculatedCrc = str(binascii.crc32(
+                messageContent.encode()) & 0xFFFFFFFF)
             if calculatedCrc != crc:
                 print('CRC nao confere')
-                passAlongMessages(forwardMessage("NACK", source, destination, crc, messageContent))
+                passAlongMessages(forwardMessage(
+                    "NACK", source, destination, crc, messageContent))
                 return
             else:
                 print('Mensagem recebida: ', messageContent)
-                passAlongMessages(forwardMessage("ACK", source, destination, crc, messageContent))
+                passAlongMessages(forwardMessage(
+                    "ACK", source, destination, crc, messageContent).encode())
                 return
             # testar se o crc esta certo, caso esteja, enviar ack - caso nao esteja, enviar nack
         else:
             if destination == 'TODOS':
                 print('(Broadcast):', message)
+                passAlongMessages(message.encode())
             else:
                 newMessageContent = messageContent
                 if random.randint(0, 100) < 10:
                     newMessageContent = messageContent + ' (corrompida)'
 
-                passAlongMessages(forwardMessage(errorControl, source, destination, crc, newMessageContent))
+                passAlongMessages(forwardMessage(
+                    errorControl, source, destination, crc, newMessageContent).encode())
                 pass
 
         if source == userName:
-            if errorControl == "ack":
+            if errorControl == "ACK":
                 print('ACK recebido - Repassando token')
                 messageSent = False
                 dataMessages.get()
                 passAlongToken()
                 return
 
-            elif errorControl == "nack":
+            elif errorControl == "NACK":
                 print(
                     'NACK recebido - Repassando token (Mensagem sera enviada na proxima rodada)')
                 messageSent = False
@@ -121,7 +127,7 @@ def passAlongToken():
 
 
 def sendMessages():
-    message = dataMessages[0]
+    message = dataMessages.queue[0]
     package = packPackage("naoexiste", userName, neighborName, message)
     s.sendto(package.encode(), (neighborIP, neighborPort))
 
@@ -131,13 +137,14 @@ def packPackage(errorControl, source, destination, message):
     package = f"7777:{errorControl};{source};{destination};{crc};{message}"
     return package
 
+
 def forwardMessage(errorControl, source, destination, crc, message):
     package = f"7777:{errorControl};{source};{destination};{crc};{message}"
     return package
 
 
 def unpackPackage(package):
-    partes = package[5:].split(';')
+    partes = package.split(':')[1].split(';')
     if len(partes) == 5:
         controle_erro, origem, destino, crc, mensagem = partes
         return controle_erro, origem, destino, crc, mensagem
@@ -149,7 +156,6 @@ def writeMessages():
         message = input("")
         if dataMessages.qsize() < 10:
             dataMessages.put(message)
-            print(dataMessages.queue)
         else:
             print("Fila cheia, espera para enviar mais mensagens")
 
@@ -158,17 +164,10 @@ t1 = threading.Thread(target=receive)
 t1.daemon = True
 t1.start()
 
-# t2 = threading.Thread(target=passAlongMessages)
-# t2.daemon = True
-# t2.start()
-
-# t3 = threading.Thread(target=sendMessages)
-# t3.daemon = True
-# t3.start()
 
 t4 = threading.Thread(target=writeMessages)
 t4.daemon = True
 t4.start()
 
-# t3.join()
+t1.join()
 t4.join()
