@@ -26,6 +26,19 @@ dataMessages = queue.Queue()
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((userIP, userPort))
 
+if userHasToken:
+    print('Você tem o token')
+
+
+def userStartedWithToken():
+    if userHasToken and not dataMessages.empty():
+        sendMessages()
+        print('Mensagem enviada')
+    else:
+        sleep(tokenExpirationTime)
+        print('Token expirado -- Repassando token')
+        passAlongToken()
+
 
 def receive():
     while True:
@@ -159,6 +172,8 @@ def writeMessages():
         else:
             print("Fila cheia, espera para enviar mais mensagens")
 
+
+userStartedWithToken()
 
 t1 = threading.Thread(target=receive)
 t1.daemon = True
