@@ -12,6 +12,7 @@ userPort = int(lines[0].strip().split(':')[1])
 userName = lines[1].strip()
 tokenExpirationTime = int(lines[2].strip())
 userHasToken = lines[3].strip().lower() == "true"
+userStartedWithTokek = userHasToken
 
 messageSent = False
 
