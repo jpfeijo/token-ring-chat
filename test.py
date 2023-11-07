@@ -29,14 +29,6 @@ def receive():
         message, _ = s.recvfrom(1024)
         messageDecoded = message.decode()
 
-        if messageDecoded.startswith("9000"):  # token
-            # userHasToken = True
-            pass
-
-        if messageDecoded.startswith("7777"):
-            errorControl, source, destination, crc, messageContent = unpackPackage(
-                messageDecoded)
-
         if source == userName:
             passAlongToken()
             # passa o token, pois a mensgem enviada já deu a volta
@@ -51,8 +43,9 @@ def handleMessage(message, address):
             return
 
         userHasToken = True
+
         if dataMessages.empty():
-            print('Token recebidom mas nenhuma mensagem para ser enviada')
+            print('Token recebido mas nenhuma mensagem para ser enviada')
             passAlongToken()
             return
 
@@ -62,10 +55,45 @@ def handleMessage(message, address):
         return
 
     if message.startswith("7777"):
+        messageData = message.split(':')[1]
         errorControl, source, destination, crc, messageContent = unpackPackage(
-            messageDecoded)
+            messageData)
 
-        pass
+        if destination == userName:
+            print(message)
+            # testar se o crc esta certo, caso esteja, enviar ack - caso nao esteja, enviar nack
+
+        if destination == 'TODOS' and source != userName:
+            print('(Broadcast):', message)
+
+        if source == userName:
+            if errorControl == "ack":
+                print('ACK recebido - Repassando token')
+                messageSent = False
+                dataMessages.get()
+                passAlongToken()
+                return
+
+            if errorControl == "nack":
+                print(
+                    'NACK recebido - Repassando token (Mensagem sera enviada na proxima rodada)')
+                messageSent = False
+                passAlongToken()
+                return
+
+            if errorControl == "naoexiste":
+                if destination != 'TODOS':
+                    print(
+                        'Destinatario nao existe ou esta desligado - Repassando token')
+                    messageSent = False
+                    passAlongToken()
+                    return
+                else:
+                    print('Mensagem enviada para todos os usuarios - Repassando token')
+                    messageSent = False
+                    dataMessages.get()
+                    passAlongToken()
+                    return
 
 
 def passAlongMessages():
@@ -99,11 +127,10 @@ def packPackage(errorControl, source, destination, message):
 
 
 def unpackPackage(package):
-    if package.startswith("7777:"):
-        partes = package[5:].split(';')
-        if len(partes) == 5:
-            controle_erro, origem, destino, crc, mensagem = partes
-            return controle_erro, origem, destino, crc, mensagem
+    partes = package[5:].split(';')
+    if len(partes) == 5:
+        controle_erro, origem, destino, crc, mensagem = partes
+        return controle_erro, origem, destino, crc, mensagem
     return None
 
 
