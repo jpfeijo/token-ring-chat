@@ -28,13 +28,10 @@ def receive():
     while True:
         message, _ = s.recvfrom(1024)
         messageDecoded = message.decode()
-
-        if source == userName:
-            passAlongToken()
-            # passa o token, pois a mensgem enviada já deu a volta
+        handleMessage(messageDecoded)
 
 
-def handleMessage(message, address):
+def handleMessage(message):
     global messageSent, userHasToken, dataMessages
 
     if message.startswith("9000"):
@@ -60,11 +57,22 @@ def handleMessage(message, address):
             messageData)
 
         if destination == userName:
-            print(message)
+            calculatedCrc = str(binascii.crc32(messageContent.encode()) & 0xFFFFFFFF)
+            if calculatedCrc != crc:
+                print('CRC nao confere')
+                passAlongMessages(forwardMessage("NACK", source, destination, crc, messageContent))
+                return
+            else:
+                print('Mensagem recebida: ', messageContent)
+                passAlongMessages(forwardMessage("ACK", source, destination, crc, messageContent))
+                return
             # testar se o crc esta certo, caso esteja, enviar ack - caso nao esteja, enviar nack
-
-        if destination == 'TODOS' and source != userName:
-            print('(Broadcast):', message)
+        else:
+            if destination == 'TODOS':
+                print('(Broadcast):', message)
+            else:
+                #Módulo de insercao de falhas
+                pass
 
         if source == userName:
             if errorControl == "ack":
@@ -74,14 +82,14 @@ def handleMessage(message, address):
                 passAlongToken()
                 return
 
-            if errorControl == "nack":
+            elif errorControl == "nack":
                 print(
                     'NACK recebido - Repassando token (Mensagem sera enviada na proxima rodada)')
                 messageSent = False
                 passAlongToken()
                 return
 
-            if errorControl == "naoexiste":
+            elif errorControl == "naoexiste":
                 if destination != 'TODOS':
                     print(
                         'Destinatario nao existe ou esta desligado - Repassando token')
@@ -96,16 +104,8 @@ def handleMessage(message, address):
                     return
 
 
-def passAlongMessages():
-    isMessageForMe = True  # variavel mocada
-
-    while True:
-        message, _ = s.recvfrom(1024)
-        messageDecoded = message.decode()
-        if isMessageForMe:
-            print(message.decode())
-
-        s.sendto(message, (neighborIP, neighborPort))
+def passAlongMessages(message):
+    s.sendto(message, (neighborIP, neighborPort))
 
 
 def passAlongToken():
@@ -125,6 +125,10 @@ def packPackage(errorControl, source, destination, message):
     package = f"7777:{errorControl};{source};{destination};{crc};{message}"
     return package
 
+def forwardMessage(errorControl, source, destination, crc, message):
+    package = f"7777:{errorControl};{source};{destination};{crc};{message}"
+    return package
+
 
 def unpackPackage(package):
     partes = package[5:].split(';')
@@ -137,8 +141,11 @@ def unpackPackage(package):
 def writeMessages():
     while True:
         message = input("")
-        dataMessages.put(message)
-        print(dataMessages.queue)
+        if dataMessages.qsize() < 10:
+            dataMessages.put(message)
+            print(dataMessages.queue)
+        else:
+            print("Fila cheia, espera para enviar mais mensagens")
 
 
 t1 = threading.Thread(target=receive)
