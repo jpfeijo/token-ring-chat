@@ -16,6 +16,7 @@ userHasToken = lines[3].strip().lower() == "true"
 userStartedWithTokek = userHasToken
 
 messageSent = False
+messageBeingProcessed = False
 
 neighborIP = input("Enter neighbor IP: ")
 neighborPort = int(input("Enter neighbor port: "))
@@ -34,7 +35,7 @@ def userStartedWithToken():
     if userHasToken and not dataMessages.empty():
         sendMessages()
         print('Mensagem enviada')
-    else:
+    if userHasToken:
         sleep(tokenExpirationTime)
         print('Token expirado -- Repassando token')
         passAlongToken()
@@ -48,7 +49,10 @@ def receive():
 
 
 def handleMessage(message):
-    global messageSent, userHasToken, dataMessages
+
+    global messageSent, userHasToken, dataMessages, messageBeingProcessed
+    print('entrou handle message')
+    messageBeingProcessed = True
 
     if message.startswith("9000"):
         if messageSent:
@@ -78,7 +82,7 @@ def handleMessage(message):
             if calculatedCrc != crc:
                 print('CRC nao confere')
                 passAlongMessages(forwardMessage(
-                    "NACK", source, destination, crc, messageContent))
+                    "NACK", source, destination, crc, messageContent).encode())
                 return
             else:
                 print('Mensagem recebida: ', messageContent)
@@ -97,7 +101,6 @@ def handleMessage(message):
 
                 passAlongMessages(forwardMessage(
                     errorControl, source, destination, crc, newMessageContent).encode())
-                pass
 
         if source == userName:
             if errorControl == "ACK":
@@ -175,14 +178,5 @@ def writeMessages():
 
 userStartedWithToken()
 
-t1 = threading.Thread(target=receive)
-t1.daemon = True
-t1.start()
-
-
-t4 = threading.Thread(target=writeMessages)
-t4.daemon = True
-t4.start()
-
-t1.join()
-t4.join()
+threading.Thread(target=receive).start()
+threading.Thread(target=writeMessages).start()
