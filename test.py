@@ -2,6 +2,7 @@ import socket
 import queue
 import threading
 import binascii
+import random
 
 with open('config.txt') as f:
     lines = f.readlines()
@@ -71,7 +72,11 @@ def handleMessage(message):
             if destination == 'TODOS':
                 print('(Broadcast):', message)
             else:
-                #Módulo de insercao de falhas
+                newMessageContent = messageContent
+                if random.randint(0, 100) < 10:
+                    newMessageContent = messageContent + ' (corrompida)'
+
+                passAlongMessages(forwardMessage(errorControl, source, destination, crc, newMessageContent))
                 pass
 
         if source == userName:
