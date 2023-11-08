@@ -44,14 +44,19 @@ def userStartedWithToken():
 def receive():
     while True:
         message, _ = s.recvfrom(1024)
-        messageDecoded = message.decode()
-        handleMessage(messageDecoded)
+        handleMessage(message)
 
 
-def handleMessage(message):
+def handleMessage(messageRaw):
 
+    message = messageRaw.decode()
+    sleep(tokenExpirationTime)
     global messageSent, userHasToken, dataMessages, messageBeingProcessed
-    print('entrou handle message')
+
+    if messageBeingProcessed:
+        print('Message is already being processed')
+        return
+
     messageBeingProcessed = True
 
     if message.startswith("9000"):
@@ -115,7 +120,6 @@ def handleMessage(message):
                     'NACK recebido - Repassando token (Mensagem sera enviada na proxima rodada)')
                 messageSent = False
                 passAlongToken()
-                return
 
             elif errorControl == "naoexiste":
                 if destination != 'TODOS':
@@ -123,13 +127,14 @@ def handleMessage(message):
                         'Destinatario nao existe ou esta desligado - Repassando token')
                     messageSent = False
                     passAlongToken()
-                    return
                 else:
                     print('Mensagem enviada para todos os usuarios - Repassando token')
                     messageSent = False
                     dataMessages.get()
                     passAlongToken()
                     return
+
+    messageBeingProcessed = False
 
 
 def passAlongMessages(message):
