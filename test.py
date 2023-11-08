@@ -15,7 +15,7 @@ with open('config.txt') as f:
 # userHasToken = lines[3].strip().lower() == "true"
 # userStartedWithTokek = userHasToken
 
-userIP = '192.168.100.49'
+userIP = '192.168.1.98'
 userPort = int(input("Enter your port: "))
 userName = input("Enter your name: ")
 tokenExpirationTime = 4
@@ -25,7 +25,7 @@ userStartedWithTokek = userHasToken
 messageSent = False
 
 # neighborIP = input("Enter neighbor IP: ")
-neighborIP = '192.168.100.49'
+neighborIP = '192.168.1.98'
 neighborPort = int(input("Enter neighbor port: "))
 neighborName = input("Enter neighbor name: ")
 
@@ -102,13 +102,13 @@ def handleMessage(messageRaw):
                 passAlongMessages(message.encode())
                 return
             # esse else tava quebrando e a mensagem sempre caia aqui ================
-            # else:
-            #     newMessageContent = messageContent
-            #     if random.randint(0, 100) < 10:
-            #         newMessageContent = messageContent + ' (corrompida)'
+            elif source != userName:
+                newMessageContent = messageContent
+                if random.randint(0, 100) < 10:
+                    newMessageContent = messageContent + ' (corrompida)'
 
-            #     passAlongMessages(forwardMessage(
-            #         errorControl, source, destination, crc, newMessageContent).encode())
+                passAlongMessages(forwardMessage(
+                    errorControl, source, destination, crc, newMessageContent).encode())
 
         if source == userName:
             if errorControl == "ACK":
