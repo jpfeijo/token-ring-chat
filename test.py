@@ -8,17 +8,25 @@ from time import sleep
 with open('config.txt') as f:
     lines = f.readlines()
 
-userIP = lines[0].strip().split(':')[0]
-userPort = int(lines[0].strip().split(':')[1])
-userName = lines[1].strip()
-tokenExpirationTime = int(lines[2].strip())
-userHasToken = lines[3].strip().lower() == "true"
-userStartedWithTokek = userHasToken
+# neighborIP = lines[0].strip().split(':')[0]
+# neighborPort = int(lines[0].strip().split(':')[1])
+# userName = lines[1].strip()
+# tokenExpirationTime = int(lines[2].strip())
+# userHasToken = lines[3].strip().lower() == "true"
+# userStartedWithTokek = userHasToken
+# userIP = input("Enter your IP: ")
+# userPort = int(input("Enter neighbor port: "))
 
 messageSent = False
 
-neighborIP = '192.168.100.49'
+userIP = ""
+userPort = int(input("Enter your port: "))
+userHasToken = input("do you have the toker (true/false)") == "true"
+userStartedWithTokek = userHasToken
+
+neighborIP = userIP
 neighborPort = int(input("Enter neighbor port: "))
+
 
 dataMessages = queue.Queue()
 
