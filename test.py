@@ -11,7 +11,7 @@ with open('config.txt') as f:
 # neighborIP = lines[0].strip().split(':')[0]
 # neighborPort = int(lines[0].strip().split(':')[1])
 # userName = lines[1].strip()
-# tokenExpirationTime = int(lines[2].strip())
+tokenExpirationTime = int(lines[2].strip())
 # userHasToken = lines[3].strip().lower() == "true"
 # userStartedWithTokek = userHasToken
 # userIP = input("Enter your IP: ")
@@ -22,6 +22,7 @@ messageSent = False
 userIP = ""
 userPort = int(input("Enter your port: "))
 userHasToken = input("do you have the toker (true/false)") == "true"
+userName = input("Enter your name: ")
 userStartedWithTokek = userHasToken
 
 neighborIP = userIP
