@@ -8,23 +8,15 @@ from time import sleep
 with open('config.txt') as f:
     lines = f.readlines()
 
-# userIP = lines[0].strip().split(':')[0]
-# userPort = int(lines[0].strip().split(':')[1])
-# userName = lines[1].strip()
-# tokenExpirationTime = int(lines[2].strip())
-# userHasToken = lines[3].strip().lower() == "true"
-# userStartedWithTokek = userHasToken
-
-userIP = '192.168.100.49'
-userPort = int(input("Enter your port: "))
-userName = input("Enter your name: ")
-tokenExpirationTime = 4
-userHasToken = input("Do you have the token? (True/False): ").lower() == "true"
+userIP = lines[0].strip().split(':')[0]
+userPort = int(lines[0].strip().split(':')[1])
+userName = lines[1].strip()
+tokenExpirationTime = int(lines[2].strip())
+userHasToken = lines[3].strip().lower() == "true"
 userStartedWithTokek = userHasToken
 
 messageSent = False
 
-# neighborIP = input("Enter neighbor IP: ")
 neighborIP = '192.168.100.49'
 neighborPort = int(input("Enter neighbor port: "))
 
