@@ -15,7 +15,7 @@ with open('config.txt') as f:
 # userHasToken = lines[3].strip().lower() == "true"
 # userStartedWithTokek = userHasToken
 
-userIP = '192.168.1.98'
+userIP = '192.168.100.49'
 userPort = int(input("Enter your port: "))
 userName = input("Enter your name: ")
 tokenExpirationTime = 4
@@ -25,9 +25,8 @@ userStartedWithTokek = userHasToken
 messageSent = False
 
 # neighborIP = input("Enter neighbor IP: ")
-neighborIP = '192.168.1.98'
+neighborIP = '192.168.100.49'
 neighborPort = int(input("Enter neighbor port: "))
-neighborName = input("Enter neighbor name: ")
 
 dataMessages = queue.Queue()
 
@@ -50,7 +49,6 @@ def userStartedWithToken():
 def receive():
     while True:
         message, _ = s.recvfrom(1024)
-        print('Mensagem recebida', message)
         handleMessage(message)
 
 
@@ -95,23 +93,8 @@ def handleMessage(messageRaw):
                 passAlongMessages(forwardMessage(
                     "ACK", source, destination, crc, messageContent).encode())
                 return
-            # testar se o crc esta certo, caso esteja, enviar ack - caso nao esteja, enviar nack
-        else:
-            if destination == 'TODOS':
-                print('(Broadcast):', message)
-                passAlongMessages(message.encode())
-                return
-            # esse else tava quebrando e a mensagem sempre caia aqui ================
-            elif source != userName and errorControl == "naoexiste":
-                newMessageContent = messageContent
-                if random.randint(0, 100) < 10:
-                    print("gerando erro")
-                    newMessageContent = messageContent + ' (corrompida)'
 
-                passAlongMessages(forwardMessage(
-                    errorControl, source, destination, crc, newMessageContent).encode())
-
-        if source == userName:
+        elif source == userName:
             if errorControl == "ACK":
                 print('ACK recebido')
                 messageSent = False
@@ -138,6 +121,23 @@ def handleMessage(messageRaw):
                     passAlongToken()
                     return
 
+        else:
+            errorControl, source, destination, crc, messageContent = unpackPackage(
+                message)
+            if destination == 'TODOS':
+                print('(Broadcast):', messageContent)
+                passAlongMessages(message.encode())
+                return
+            # esse else tava quebrando e a mensagem sempre caia aqui ================
+            elif source != userName and errorControl == "naoexiste":
+                newMessageContent = messageContent
+                if random.randint(0, 100) < 10:
+                    print("gerando erro")
+                    newMessageContent = messageContent + ' (corrompida)'
+
+                passAlongMessages(forwardMessage(
+                    errorControl, source, destination, crc, newMessageContent).encode())
+
     messageBeingProcessed = False
 
 
@@ -154,7 +154,17 @@ def passAlongToken():
 
 def sendMessages():
     message = dataMessages.queue[0]
-    package = packPackage("naoexiste", userName, "t3", message)
+
+    if message.startswith('@'):
+        destination = message.split(' ')[0][1:]
+        print('Mensagem privada para', destination)
+        messageContent = message.split(' ', 1)[1]
+        package = packPackage("naoexiste", userName,
+                              destination, messageContent)
+
+    else:
+        package = packPackage("naoexiste", userName, "TODOS", message)
+
     s.sendto(package.encode(), (neighborIP, neighborPort))
 
 
