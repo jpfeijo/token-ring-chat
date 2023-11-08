@@ -8,17 +8,24 @@ from time import sleep
 with open('config.txt') as f:
     lines = f.readlines()
 
-userIP = lines[0].strip().split(':')[0]
-userPort = int(lines[0].strip().split(':')[1])
-userName = lines[1].strip()
-tokenExpirationTime = int(lines[2].strip())
-userHasToken = lines[3].strip().lower() == "true"
+# userIP = lines[0].strip().split(':')[0]
+# userPort = int(lines[0].strip().split(':')[1])
+# userName = lines[1].strip()
+# tokenExpirationTime = int(lines[2].strip())
+# userHasToken = lines[3].strip().lower() == "true"
+# userStartedWithTokek = userHasToken
+
+userIP = '192.168.100.49'
+userPort = int(input("Enter your port: "))
+userName = input("Enter your name: ")
+tokenExpirationTime = 4
+userHasToken = input("Do you have the token? (True/False): ").lower() == "true"
 userStartedWithTokek = userHasToken
 
 messageSent = False
-messageBeingProcessed = False
 
-neighborIP = input("Enter neighbor IP: ")
+# neighborIP = input("Enter neighbor IP: ")
+neighborIP = '192.168.100.49'
 neighborPort = int(input("Enter neighbor port: "))
 neighborName = input("Enter neighbor name: ")
 
@@ -37,13 +44,13 @@ def userStartedWithToken():
         print('Mensagem enviada')
     if userHasToken:
         sleep(tokenExpirationTime)
-        print('Token expirado -- Repassando token')
         passAlongToken()
 
 
 def receive():
     while True:
         message, _ = s.recvfrom(1024)
+        print('Mensagem recebida', message)
         handleMessage(message)
 
 
@@ -52,12 +59,6 @@ def handleMessage(messageRaw):
     message = messageRaw.decode()
     sleep(tokenExpirationTime)
     global messageSent, userHasToken, dataMessages, messageBeingProcessed
-
-    if messageBeingProcessed:
-        print('Message is already being processed')
-        return
-
-    messageBeingProcessed = True
 
     if message.startswith("9000"):
         if messageSent:
@@ -99,17 +100,19 @@ def handleMessage(messageRaw):
             if destination == 'TODOS':
                 print('(Broadcast):', message)
                 passAlongMessages(message.encode())
-            else:
-                newMessageContent = messageContent
-                if random.randint(0, 100) < 10:
-                    newMessageContent = messageContent + ' (corrompida)'
+                return
+            # esse else tava quebrando e a mensagem sempre caia aqui ================
+            # else:
+            #     newMessageContent = messageContent
+            #     if random.randint(0, 100) < 10:
+            #         newMessageContent = messageContent + ' (corrompida)'
 
-                passAlongMessages(forwardMessage(
-                    errorControl, source, destination, crc, newMessageContent).encode())
+            #     passAlongMessages(forwardMessage(
+            #         errorControl, source, destination, crc, newMessageContent).encode())
 
         if source == userName:
             if errorControl == "ACK":
-                print('ACK recebido - Repassando token')
+                print('ACK recebido')
                 messageSent = False
                 dataMessages.get()
                 passAlongToken()
@@ -117,18 +120,18 @@ def handleMessage(messageRaw):
 
             elif errorControl == "NACK":
                 print(
-                    'NACK recebido - Repassando token (Mensagem sera enviada na proxima rodada)')
+                    'NACK recebido (Mensagem sera enviada na proxima rodada)')
                 messageSent = False
                 passAlongToken()
 
             elif errorControl == "naoexiste":
                 if destination != 'TODOS':
                     print(
-                        'Destinatario nao existe ou esta desligado - Repassando token')
+                        'Destinatario nao existe ou esta desligado')
                     messageSent = False
                     passAlongToken()
                 else:
-                    print('Mensagem enviada para todos os usuarios - Repassando token')
+                    print('Mensagem enviada para todos os usuarios')
                     messageSent = False
                     dataMessages.get()
                     passAlongToken()
@@ -143,6 +146,7 @@ def passAlongMessages(message):
 
 def passAlongToken():
     global userHasToken
+    print('Passando o token')
     s.sendto('9000'.encode(), (neighborIP, neighborPort))
     userHasToken = False
 
