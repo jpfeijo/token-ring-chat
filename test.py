@@ -3,7 +3,7 @@ import queue
 import threading
 import binascii
 import random
-from time import sleep
+from time import *
 
 with open('config.txt') as f:
     lines = f.readlines()
@@ -18,12 +18,17 @@ tokenExpirationTime = int(lines[2].strip())
 # userPort = int(input("Enter neighbor port: "))
 
 messageSent = False
+tokenReceivedTime = 0
+minNextTokenTime = int(input("Enter min next token time: "))
+
+removeToken = False
+
 
 userIP = ""
 userPort = int(input("Enter your port: "))
 userHasToken = input("do you have the toker (true/false)") == "true"
 userName = input("Enter your name: ")
-userStartedWithTokek = userHasToken
+userStartedWithToken = userHasToken
 
 neighborIP = userIP
 neighborPort = int(input("Enter neighbor port: "))
@@ -39,11 +44,13 @@ if userHasToken:
 
 
 def userStartedWithToken():
+    global tokenReceivedTime
     if userHasToken and not dataMessages.empty():
         sendMessages()
         print('Mensagem enviada')
     if userHasToken:
         sleep(tokenExpirationTime)
+        tokenReceivedTime = time()
         passAlongToken()
 
 
@@ -54,22 +61,34 @@ def receive():
 
 
 def handleMessage(messageRaw):
+    global tokenReceivedTime, userStartedWithToken, messageSent, userHasToken, dataMessages, messageBeingProcessed, removeToken
 
     message = messageRaw.decode()
     sleep(tokenExpirationTime)
-    global messageSent, userHasToken, dataMessages, messageBeingProcessed
 
     if message.startswith("9000"):
+
+        if userStartedWithToken:
+            if time() - tokenReceivedTime < minNextTokenTime:
+                print('Token recebido antes do tempo minimo, 2 tokens na rede')
+                return
+            
+
+
         if messageSent:
             print('Token recebido mas esperando por ACK')
             return
 
         userHasToken = True
+        tokenReceivedTime = time()
 
         if dataMessages.empty():
             print('Token recebido mas nenhuma mensagem para ser enviada')
             sleep(tokenExpirationTime)
-            passAlongToken()
+            if not removeToken:
+                passAlongToken()
+            else:
+                removeToken = False
             return
 
         messageSent = True
@@ -100,26 +119,39 @@ def handleMessage(messageRaw):
                 print('ACK recebido')
                 messageSent = False
                 dataMessages.get()
-                passAlongToken()
+                if not removeToken:
+                    passAlongToken()
+                else:
+                    emoveToken = False
                 return
 
             elif errorControl == "NACK":
                 print(
                     'NACK recebido (Mensagem sera enviada na proxima rodada)')
                 messageSent = False
-                passAlongToken()
+                if not removeToken:
+                    passAlongToken()
+                else:
+                    removeToken = False
 
             elif errorControl == "naoexiste":
                 if destination != 'TODOS':
                     print(
                         'Destinatario nao existe ou esta desligado')
                     messageSent = False
-                    passAlongToken()
+                    dataMessages.get()
+                    if not removeToken:
+                        passAlongToken()
+                    else:
+                        removeToken = False
                 else:
                     print('Mensagem enviada para todos os usuarios')
                     messageSent = False
                     dataMessages.get()
-                    passAlongToken()
+                    if not removeToken:
+                        passAlongToken()
+                    else:
+                        removeToken = False
                     return
 
         else:
@@ -189,8 +221,15 @@ def unpackPackage(package):
 
 
 def writeMessages():
+    global removeToken
     while True:
         message = input("")
+        if message == "!gerarToken":
+            passAlongToken()
+            return
+        if message == "!removeToken":
+            removeToken = True
+            return
         if dataMessages.qsize() < 10:
             dataMessages.put(message)
         else:
